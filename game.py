@@ -82,37 +82,23 @@ def parse_game_row(row, game_date):
         print(f"행 파싱 중 오류 발생: {e}")
         return None
 
+def insert_game_info(conn, game_info):
+    try:
+        sql = """
+            INSERT INTO game (home_team_name, away_team_name, game_date, game_time, stadium_name)
+            VALUES (%s, %s, %s, %s, %s)
+        """
+        values = (
+            game_info["home_team_name"],
+            game_info["away_team_name"],
+            game_info["game_date"],
+            game_info["game_time"],
+            game_info["stadium_name"]
+        )
+        with conn.cursor() as cursor:
+            cursor.execute(sql, values)
     except Exception as e:
-        print(f"행 파싱 중 오류 발생: {e}")
-        return None
-
-    except Exception as e:
-        print(f"행 파싱 중 오류 발생: {e}")
-        return None
-
-    except Exception as e:
-        print(f"행 파싱 중 오류 발생: {e}")
-        return None
-
-    except Exception as e:
-        print(f"행 파싱 중 오류 발생: {e}")
-        return None
-
-def print_sql_insert(game_info):
-    sql = (
-        "INSERT INTO game (home_team_name, away_team_name, game_date, game_time, stadium_name) "
-        "VALUES (%s, %s, %s, %s, %s);"
-    )
-    values = (
-        game_info["home_team_name"],
-        game_info["away_team_name"],
-        game_info["game_date"],
-        game_info["game_time"],
-        game_info["stadium_name"]
-    )
-    print(sql)
-    print("Params:", values)
-    print("-" * 80)
+        print(f"DB 저장 오류: {e}")
 
 def click_next_month(driver):
     next_btn = driver.find_element(By.ID, "btnNext")
@@ -124,14 +110,13 @@ def get_current_year_month(driver):
     month = Select(driver.find_element(By.ID, "ddlMonth")).first_selected_option.text.strip()
     return int(year), int(month)
 
-def crawl_games():
+def crawl_games(conn):
     options = Options()
     options.add_argument("--headless=new")
     driver = webdriver.Chrome(options=options)
 
     try:
         driver.get("https://www.koreabaseball.com/Schedule/Schedule.aspx")
-
         Select(driver.find_element(By.ID, "ddlYear")).select_by_value("2025")
         time.sleep(1.5)
 
@@ -155,12 +140,16 @@ def crawl_games():
 
                 game_info = parse_game_row(row, current_date)
                 if game_info:
-                    print_sql_insert(game_info)
+                    insert_game_info(conn, game_info)
 
+        conn.commit()
     finally:
         driver.quit()
 
 if __name__ == "__main__":
     db_config_path = "C:\\mateball_crawling\\MATEBALL_DATA\\db_config.yaml"
     db_config = load_db_config(db_config_path)
-    crawl_games()
+    conn = get_connection(db_config)
+    if conn:
+        crawl_games(conn)
+        conn.close()
