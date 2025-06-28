@@ -10,8 +10,8 @@ from bs4 import BeautifulSoup
 
 def load_db_config(file_path):
     with open(file_path, "r", encoding="utf-8") as file:
-        config = yaml.safe_load(file)
-        return config.get("database")
+        return yaml.safe_load(file).get("database")
+
 
 def get_connection(config):
     try:
@@ -82,23 +82,30 @@ def parse_game_row(row, game_date):
         print(f"행 파싱 중 오류 발생: {e}")
         return None
 
-def insert_game_info(conn, game_info):
+def insert_game_batch(conn, game_info_list):
+    if not game_info_list:
+        return
     try:
         sql = """
             INSERT INTO game (home_team_name, away_team_name, game_date, game_time, stadium_name)
             VALUES (%s, %s, %s, %s, %s)
+            ON DUPLICATE KEY UPDATE stadium_name = VALUES(stadium_name)
         """
-        values = (
-            game_info["home_team_name"],
-            game_info["away_team_name"],
-            game_info["game_date"],
-            game_info["game_time"],
-            game_info["stadium_name"]
-        )
+        values = [
+            (
+                game["home_team_name"],
+                game["away_team_name"],
+                game["game_date"],
+                game["game_time"],
+                game["stadium_name"]
+            )
+            for game in game_info_list
+        ]
         with conn.cursor() as cursor:
-            cursor.execute(sql, values)
+            cursor.executemany(sql, values)
+        print(f"[INFO] {len(values)}개 경기 정보 삽입 완료")
     except Exception as e:
-        print(f"DB 저장 오류: {e}")
+        print(f"[ERROR] DB 삽입 실패: {e}")
 
 def click_next_month(driver):
     next_btn = driver.find_element(By.ID, "btnNext")
@@ -131,6 +138,7 @@ def crawl_games(conn):
             soup = BeautifulSoup(driver.page_source, "html.parser")
             rows = soup.select("table#tblScheduleList tbody tr")
             current_date = None
+            batch = []
 
             for row in rows:
                 day_td = row.find("td", class_="day")
@@ -140,9 +148,11 @@ def crawl_games(conn):
 
                 game_info = parse_game_row(row, current_date)
                 if game_info:
-                    insert_game_info(conn, game_info)
+                    batch.append(game_info)
 
-        conn.commit()
+            insert_game_batch(conn, batch)
+            conn.commit()
+
     finally:
         driver.quit()
 
