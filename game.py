@@ -87,14 +87,14 @@ def insert_game_batch(conn, game_info_list):
         return
     try:
         sql = """
-            INSERT INTO game (home_team_name, away_team_name, game_date, game_time, stadium_name)
+            INSERT INTO game_information (away_team_name, home_team_name, game_date, game_time, stadium_name)
             VALUES (%s, %s, %s, %s, %s)
             ON DUPLICATE KEY UPDATE stadium_name = VALUES(stadium_name)
         """
         values = [
             (
-                game["home_team_name"],
                 game["away_team_name"],
+                game["home_team_name"],
                 game["game_date"],
                 game["game_time"],
                 game["stadium_name"]
