@@ -26,15 +26,15 @@ def get_connection(config):
         return None
 
 STADIUM_MAP = {
-    "잠실": "잠실구장",
-    "문학": "문학구장",
-    "고척": "고척돔",
-    "사직": "사직구장",
-    "창원": "창원몰",
-    "수원": "수원몰",
-    "대전(신)": "신구장",
-    "대구": "대주장",
-    "광주": "광주경기장"
+    "잠실": "종합운동장",
+    "문학": "SSG랜더스필드",
+    "고척": "고척스카이돔",
+    "사직": "사직야구장",
+    "창원": "NC파크",
+    "수원": "KT위즈파크",
+    "대전(신)": "한화이글스파크",
+    "대구": "삼성라이온즈파크",
+    "광주": "기아챔피언스필드"
 }
 
 def parse_game_row(row, game_date):
@@ -87,14 +87,14 @@ def insert_game_batch(conn, game_info_list):
         return
     try:
         sql = """
-            INSERT INTO game (home_team_name, away_team_name, game_date, game_time, stadium_name)
+            INSERT INTO game_information (away_team_name, home_team_name, game_date, game_time, stadium_name)
             VALUES (%s, %s, %s, %s, %s)
             ON DUPLICATE KEY UPDATE stadium_name = VALUES(stadium_name)
         """
         values = [
             (
-                game["home_team_name"],
                 game["away_team_name"],
+                game["home_team_name"],
                 game["game_date"],
                 game["game_time"],
                 game["stadium_name"]
