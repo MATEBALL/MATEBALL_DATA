@@ -22,10 +22,15 @@ def get_connection(cfg):
 def read_chatting_csv(csv_path: str) -> pd.DataFrame:
     return pd.read_csv(csv_path)
 
+def load_existing_urls(conn) -> set:
+    with conn.cursor() as cur:
+        cur.execute("SELECT chatting_url FROM chatting")
+        return {row["chatting_url"] for row in cur.fetchall() if row["chatting_url"]}
+
 def insert_urls(conn, urls, batch_size=1000):
     if not urls:
         return
-    sql = "INSERT IGNORE INTO chatting (chatting_url) VALUES (%s)"
+    sql = "INSERT INTO chatting (chatting_url) VALUES (%s)"
     with conn.cursor() as cur:
         for i in range(0, len(urls), batch_size):
             cur.executemany(sql, [(u,) for u in urls[i:i+batch_size]])
@@ -46,12 +51,22 @@ def main():
     conn = get_connection(cfg)
 
     try:
+        existing = load_existing_urls(conn)
         for fp in files_to_process(csv_path_or_dir):
             df = read_chatting_csv(fp)
             if "chatting_url" not in df.columns:
                 raise ValueError("CSV에 chatting_url 컬럼이 없습니다.")
-            urls = df["chatting_url"].dropna().astype(str).str.strip().tolist()
-            insert_urls(conn, urls, batch_size=1000)
+            urls = (
+                df["chatting_url"]
+                .dropna()
+                .astype(str)
+                .str.strip()
+                .tolist()
+            )
+            new_urls = [u for u in urls if u not in existing]
+            if new_urls:
+                insert_urls(conn, new_urls, batch_size=1000)
+                existing.update(new_urls)
         conn.commit()
     except Exception:
         conn.rollback()
