@@ -127,7 +127,7 @@ def crawl_games(conn):
         Select(driver.find_element(By.ID, "ddlYear")).select_by_value("2025")
         time.sleep(1.5)
 
-        target_months = [6, 7, 8]
+        target_months = [10]
         for target_month in target_months:
             while True:
                 current_year, current_month = get_current_year_month(driver)
